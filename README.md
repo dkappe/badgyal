@@ -34,6 +34,4 @@ for p in POS:
     board = chess.Board()
     board.set_epd(p)
     eval(bg, board)
-    board = chess.Board(fen="1k1r1b2/p4P2/Q1p4r/3p3q/Pp4p1/1P2P1P1/1BP2PK1/R3R3 b - - 4 28")
-    eval(bg, board)
 ```
