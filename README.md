@@ -20,12 +20,7 @@ def eval(net, board):
     policy, value = net.eval(board, softmax_temp=1.61)
     print(value)
     print(policy)
-    policy, value = net.eval(board, softmax_temp=1.0)
-    print(value)
-    print(policy)
-    policy, value = net.eval(board, softmax_temp=2.2)
-    print(value)
-    print(policy)
+    
 
 
 bg = badgyal.BGNet(cuda=True)
