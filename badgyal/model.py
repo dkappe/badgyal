@@ -10,7 +10,7 @@ import badgyal.proto.net_pb2 as pb
 
 
 class Net(nn.Module):
-    def __init__(self, residual_channels, residual_blocks, policy_channels, se_ratio, classical=False):
+    def __init__(self, residual_channels, residual_blocks, policy_channels, se_ratio, classical=False, classicalPolicy=False):
         super().__init__()
         channels = residual_channels
 
@@ -19,7 +19,10 @@ class Net(nn.Module):
         blocks = [(f'block{i+1}', ResidualBlock(channels, se_ratio)) for i in range(residual_blocks)]
         self.residual_stack = nn.Sequential(OrderedDict(blocks))
 
-        self.policy_head = PolicyHead(channels, policy_channels)
+        if classicalPolicy:
+            self.policy_head = PolicyHeadClassical(channels, policy_channels)
+        else:
+            self.policy_head = PolicyHead(channels, policy_channels)
         if classical:
             self.value_head = ValueHeadClassical(channels, 32, 128)
         else:
@@ -90,6 +93,20 @@ class Net(nn.Module):
             model_weight.data = torch.from_numpy(loaded_weight).view_as(model_weight)
         self.conv_block[0].weight.data[:, 109, :, :] *= 99  # scale rule50 weights due to legacy reasons
 
+    def import_proto_classical_policy(self, path):
+        proto = proto_net.Net(
+            net=pb.NetworkFormat.NETWORK_SE_WITH_HEADFORMAT,
+            input=pb.NetworkFormat.INPUT_CLASSICAL_112_PLANE,
+            value=pb.NetworkFormat.VALUE_CLASSICAL,
+            policy=pb.NetworkFormat.POLICY_CLASSICAL,
+        )
+        proto.parse_proto(path)
+        weights = proto.get_weights()
+        for model_weight, loaded_weight in zip(extract_weights(self), weights):
+            model_weight.data = torch.from_numpy(loaded_weight).view_as(model_weight)
+        self.conv_block[0].weight.data[:, 109, :, :] *= 99  # scale rule50 weights due to legacy reasons
+
+
     def export_onnx(self, path):
         dummy_input = torch.randn(10, 112, 8, 8)
         input_names = ['input_planes']
@@ -124,6 +141,19 @@ class PolicyHead(nn.Module):
         x = x.gather(dim=1, index=self.policy_map.expand(x.size(0), self.policy_map.size(1)))
         return x
 
+class PolicyHeadClassical(nn.Module):
+    def __init__(self, in_channels, policy_channels):
+        super().__init__()
+
+        self.layers = nn.Sequential(
+            ConvBlock(in_channels, policy_channels, 1),
+            Flatten(),
+            nn.Linear(8 * 8 * policy_channels, 1858),
+        )
+
+    def forward(self, x):
+        x = self.layers(x)
+        return x
 
 class ValueHead(nn.Sequential):
     def __init__(self, in_channels, value_channels, lin_channels):

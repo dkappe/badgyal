@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from time import time
 from math import exp
-from policy_index import policy_index
+from badgyal.policy_index import policy_index
 
 MOVE_MAP = dict(list(zip(policy_index, range(len(policy_index)))))
 
