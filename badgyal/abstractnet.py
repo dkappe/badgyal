@@ -28,10 +28,10 @@ class AbstractNet:
     def process_boards(self, boards):
         input = bulk_board2planes(boards)
         if self.cuda:
-            input = input.cuda()
+            input = input.pin_memory().cuda(non_blocking = True)
         with torch.no_grad():
             policies, values = self.net(input)
-            return policies, values
+            return policies.cpu(), values.cpu()
 
     def cache_boards(self, boards, softmax_temp=1.61):
         for b in boards:
@@ -86,3 +86,22 @@ class AbstractNet:
 
         # return the values
         return policy, value
+
+    def bulk_eval(self, boards, softmax_temp=1.61):
+
+        retval_p = []
+        retval_v = []
+
+        policies, values = self.process_boards(boards)
+
+        with torch.no_grad():
+            for i, b in enumerate(boards):
+                inp = policies[i].unsqueeze(dim=0)
+                policy = policy2moves(b, inp, softmax_temp=softmax_temp)
+                value = values[i].item()
+                retval_p.append(policy)
+                retval_v.append(value)
+
+
+        return retval_p, retval_v
+        
