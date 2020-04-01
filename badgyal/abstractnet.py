@@ -9,7 +9,7 @@ import sys
 
 
 
-CACHE=40000
+CACHE=100000
 MAX_BATCH = 8
 MIN_POLICY=0.2
 
@@ -48,6 +48,13 @@ class AbstractNet:
                     value = values[i].item()
                     self.cache[b.epd()] = [policy, value]
             self.prefetch = {}
+
+    def cache_eval(self, board):
+        epd = board.epd()
+        if epd in self.cache:
+            return self.cache[epd]
+        else:
+            return None, None
 
     def eval(self, board, softmax_temp=1.61):
         epd = board.epd()
@@ -101,7 +108,6 @@ class AbstractNet:
                 value = values[i].item()
                 retval_p.append(policy)
                 retval_v.append(value)
-
+                self.cache[b.epd()] = [policy, value]
 
         return retval_p, retval_v
-        
