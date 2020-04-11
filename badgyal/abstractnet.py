@@ -45,7 +45,8 @@ class AbstractNet:
                 for i, b in enumerate(self.prefetch.values()):
                     inp = policies[i].unsqueeze(dim=0)
                     policy = policy2moves(b, inp, softmax_temp=softmax_temp)
-                    value = values[i].item()
+                    value = values[i]
+                    value = self.value_to_scalar(value)
                     self.cache[b.epd()] = [policy, value]
             self.prefetch = {}
 
@@ -55,6 +56,9 @@ class AbstractNet:
             return self.cache[epd]
         else:
             return None, None
+
+    def value_to_scalar(self, value):
+        return value.item()
 
     def eval(self, board, softmax_temp=1.61):
         epd = board.epd()
@@ -71,7 +75,8 @@ class AbstractNet:
                 for i, b in enumerate(boards):
                     inp = policies[i].unsqueeze(dim=0)
                     policy = policy2moves(b, inp, softmax_temp=softmax_temp)
-                    value = values[i].item()
+                    value = values[i]
+                    value = self.value_to_scalar(value)
                     self.cache[b.epd()] = [policy, value]
 
             policy, value = self.cache[epd]
@@ -105,7 +110,8 @@ class AbstractNet:
             for i, b in enumerate(boards):
                 inp = policies[i].unsqueeze(dim=0)
                 policy = policy2moves(b, inp, softmax_temp=softmax_temp)
-                value = values[i].item()
+                value = values[i]
+                value = self.value_to_scalar(value)
                 retval_p.append(policy)
                 retval_v.append(value)
                 self.cache[b.epd()] = [policy, value]
