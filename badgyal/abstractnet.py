@@ -6,7 +6,8 @@ import chess
 from badgyal.board2planes import board2planes, policy2moves, bulk_board2planes
 import pylru
 import sys
-
+import os
+from collections import defaultdict
 
 
 CACHE=100000
@@ -133,3 +134,44 @@ class AbstractNet:
                 self.cache[b.epd()] = [policy, value]
 
         return retval_p, retval_v
+
+class LoadedNet(AbstractNet):
+    def __init__(self, path, channels=128, blocks=10, se=4, policy_channels=None, classical=True, cuda=True):
+        self.path = path
+        self.channels = channels
+        self.blocks = blocks
+        self.se = se
+        if policy_channels == None:
+            self.policy_channels = channels
+        else:
+            self.policy_channels = policy_channels
+        self.classical = classical
+        super().__init__(cuda=cuda)
+        
+    def load_net(self):
+        cwd = os.path.abspath(os.path.dirname(__file__))
+        full_path = os.path.join(cwd, self.path)
+        net = model.Net(self.channels,
+                        self.blocks,
+                        self.policy_channels,
+                        self.se,
+                        classical=self.classical)
+        if self.classical:
+            net.import_proto_classical(full_path)
+        else:
+            net.import_proto(full_path)
+        return net
+    
+    
+    def value_to_scalar(self, value):
+        if not self.classical:
+            wdl0 = value[0].item()
+            wdl1 = value[1].item()
+            wdl2 = value[2].item()
+            min_val = min(wdl0, wdl1, wdl2)
+            w_val = math.exp(wdl0 - min_val)
+            d_val = math.exp(wdl1 - min_val)
+            l_val = math.exp(wdl2 - min_val)
+            p = (w_val * 1.0 + d_val * 0.5 ) / (w_val + d_val + l_val)
+            return 2.0*p-1.0;
+        return value.item()
