@@ -16,8 +16,8 @@ SE=2
 
 class MGNet(AbstractNet):
 
-    def __init__(self, cuda=True):
-        super().__init__(cuda=cuda)
+    def __init__(self, cuda=True, torchScript=False):
+        super().__init__(cuda=cuda, torchScript=torchScript)
 
     def load_net(self):
         my_path = os.path.abspath(os.path.dirname(__file__))

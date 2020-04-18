@@ -16,14 +16,30 @@ MIN_POLICY=0.2
 
 class AbstractNet:
 
-    def __init__(self, cuda=True):
+    def __init__(self, cuda=True, torchScript=False):
         self.net = self.load_net()
         self.cuda = cuda
         if self.cuda:
             self.net = self.net.cuda()
+        # optimize
+        if torchScript:
+            self.net = torch.jit.trace(self.net, self.trace_batch().cuda())
         self.net.eval()
         self.cache = pylru.lrucache(CACHE)
         self.prefetch = {}
+
+    @staticmethod
+    def trace_batch():
+        boards = []
+        moves = ["e2e4", "c7c5", "g1f3", "d7d6", "d2d4", "c5d4", "f3d4"]
+        for i in range(8):
+            b = chess.Board()
+            boards.append(b)
+            for m in moves:
+                b = b.copy()
+                b.push_uci(m)
+                boards.append(b)
+        return bulk_board2planes(boards)
 
     def process_boards(self, boards):
         input = bulk_board2planes(boards)
