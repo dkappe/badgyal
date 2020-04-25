@@ -13,6 +13,7 @@ CHANNELS=128
 BLOCKS=10
 SE=4
 
+
 class BGNet(AbstractNet):
 
     def __init__(self, cuda=True, torchScript=False):
@@ -23,4 +24,6 @@ class BGNet(AbstractNet):
         file = os.path.join(my_path, "badgyal-8.pb.gz")
         net = model.Net(CHANNELS, BLOCKS, CHANNELS, SE, classical=True)
         net.import_proto_classical(file)
+        # fix the rule50 weights
+        net.conv_block[0].weight.data[:, 109, :, :] /= 99  # scale rule50 weights due to legacy reasons
         return net
