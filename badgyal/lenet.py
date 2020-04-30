@@ -24,4 +24,6 @@ class LENet(WDLNet):
         file = os.path.join(my_path, "LE.pb.gz")
         net = model.Net(CHANNELS, BLOCKS, CHANNELS, SE)
         net.import_proto_classical(file)
+        # fix the rule50 weights
+        net.conv_block[0].weight.data[:, 109, :, :] /= 99  # scale rule50 weights due to legacy reasons
         return net
