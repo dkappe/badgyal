@@ -4,6 +4,7 @@ import torch
 from time import time
 from math import exp
 from badgyal.policy_index import policy_index
+import re
 
 MOVE_MAP = dict(list(zip(policy_index, range(len(policy_index)))))
 
@@ -38,10 +39,16 @@ DISPATCH[str(BROOK)] = lambda retval, row, col: assign_piece(retval, 9, row, col
 DISPATCH[str(BQUEEN)] = lambda retval, row, col: assign_piece(retval, 10, row, col)
 DISPATCH[str(BKING)] = lambda retval, row, col: assign_piece(retval, 11, row, col)
 
+MOVE_RE = re.compile(r"^([a-h])(\d)([a-h])(\d)(.*)$")
+
 def dump(planes):
     for i in range(112):
         print(i)
         print(planes[0][i])
+
+def mirrorMoveUCI(move):
+    m = MOVE_RE.match(move)
+    return "{}{}{}{}{}".format(m.group(1), 9-int(m.group(2)), m.group(3), 9-int(m.group(4)), m.group(5))
 
 def mirrorMove(move):
     return chess.Move(chess.square_mirror(move.from_square), chess.square_mirror(move.to_square), move.promotion)
@@ -100,25 +107,31 @@ def policy2moves(board_, policy_tensor, softmax_temp = 1.61):
         board = board_.mirror()
     else:
         board = board_
+    policy = policy_tensor.numpy()
+
     moves = list(board.legal_moves)
     retval = {}
     max_p = float("-inf")
     for m in moves:
         uci = m.uci()
         fixed_uci = uci
-        piece = str(board.piece_at(m.from_square))
+        #piece = str(board.piece_at(m.from_square))
         # fix the uci
-        if (piece == 'K') and (uci == "e1g1"):
+        #if (piece == 'K') and (uci == "e1g1"):
+        #    fixed_uci = "e1h1"
+        #if (piece == 'K') and (uci == "e1c1"):
+        #    fixed_uci = "e1a1"
+        if (uci == "e1g1") and board.is_kingside_castling(m):
             fixed_uci = "e1h1"
-        if (piece == 'K') and (uci == "e1c1"):
+        elif (uci == "e1c1") and board.is_queenside_castling(m):
             fixed_uci = "e1a1"
         if (uci[-1] == "n"):
             # we are promoting to knight, so trim the character
             fixed_uci = uci[0:-1]
         # now mirror the uci
         if not board_.turn:
-            uci = mirrorMove(m).uci()
-        p = policy_tensor[0][MOVE_MAP[fixed_uci]].item()
+            uci = mirrorMoveUCI(uci)
+        p = policy[0][MOVE_MAP[fixed_uci]]
         retval[uci] = p
         if p > max_p:
             max_p = p
