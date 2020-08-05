@@ -21,7 +21,7 @@ class BGNet(AbstractNet):
 
     def load_net(self):
         my_path = os.path.abspath(os.path.dirname(__file__))
-        file = os.path.join(my_path, "badgyal-8.pb.gz")
+        file = os.path.join(my_path, "badgyal-9.pb.gz")
         net = model.Net(CHANNELS, BLOCKS, CHANNELS, SE, classical=True)
         net.import_proto_classical(file)
         # fix the rule50 weights
