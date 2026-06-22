@@ -14,7 +14,8 @@ import chess
 import torch
 
 POS = [
-    "1k1r1b2/p4P2/Q1p4r/3p3q/Pp4p1/1P2P1P1/1BP2PK1/R3R3 b - -"
+    "1k1r1b2/p4P2/Q1p4r/3p3q/Pp4p1/1P2P1P1/1BP2PK1/R3R3 b - -",
+    "3r1rk1/pp3qpp/2n5/1QN1pp2/3p4/P5RP/1PP2PP1/3R2K1 b - - 3 22"
 ]
 def eval(net, board):
     policy, value = net.eval(board, softmax_temp=1.61)
