@@ -1,5 +1,5 @@
 numpy==1.23.5
 protobuf==3.12.4
-torch==1.13.1
+torch==2.12.1
 pylru==1.2.1
 chess
