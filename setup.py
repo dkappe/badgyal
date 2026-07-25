@@ -8,10 +8,10 @@ setup(name='badgyal',
       packages=find_packages(),
       package_data={'badgyal': ['*.pb.gz', '*.pt']},
       install_requires=[
-          'torch',
-          'numpy',
-          'python-chess',
-          'protobuf',
-          'pylru'
+          'numpy==1.23.5',
+          'protobuf==3.12.4',
+          'torch==1.13.1',
+          'pylru==1.2.1',
+          'chess'
       ]
 )

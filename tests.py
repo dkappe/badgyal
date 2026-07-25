@@ -144,8 +144,8 @@ info string d4d5  (995 ) N:       0 (+ 0) (P:  5.74%) (WL:  0.00000) (D:  0.000)
 }
 VALUE_RE = re.compile('cp\s+(-?\d+)')
 POLICY_RE = re.compile('info string\s+(\S+).+P:\s+(\d+\.\d+)%')
-NET = badgyal.BGNet()
-LENET = badgyal.LENet()
+NET = badgyal.BGNet(cuda=False)
+LENET = badgyal.LENet(cuda=False)
 
 def from_result(result):
     results = result.split("\n")
