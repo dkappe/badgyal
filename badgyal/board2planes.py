@@ -55,9 +55,9 @@ def mirrorMove(move):
 
 def append_plane(planes, ones):
     if ones:
-        return np.append(planes, np.ones((1,8,8), dtype=np.float), axis=0)
+        return np.append(planes, np.ones((1,8,8), dtype=float), axis=0)
     else:
-        return np.append(planes, np.zeros((1,8,8), dtype=np.float), axis=0)
+        return np.append(planes, np.zeros((1,8,8), dtype=float), axis=0)
 
 def board2planes(board_):
     if not board_.turn:
@@ -65,7 +65,7 @@ def board2planes(board_):
     else:
         board = board_
 
-    retval = np.zeros((13, 8, 8), dtype=np.float)
+    retval = np.zeros((13, 8, 8), dtype=float)
     for row in range(8):
         for col in range(8):
             piece = str(board.piece_at(chess.SQUARES[row*8+col]))
@@ -84,7 +84,7 @@ def board2planes(board_):
     retval = append_plane(retval, bool(board.castling_rights & chess.BB_A8))
     retval = append_plane(retval, not board_.turn)
 
-    #a = np.full((1, 8, 8), board_.halfmove_clock, dtype=np.float)
+    #a = np.full((1, 8, 8), board_.halfmove_clock, dtype=float)
     #retval = np.append(retval, a, axis=0)
     # half-move clock goes to zero
     retval = append_plane(retval, False)
