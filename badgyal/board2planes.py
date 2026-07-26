@@ -78,10 +78,10 @@ def board2planes(board_):
     for i in range(7):
         retval = np.append(retval, temp, axis=0)
 
-    retval = append_plane(retval, bool(board.castling_rights & chess.BB_H1))
     retval = append_plane(retval, bool(board.castling_rights & chess.BB_A1))
-    retval = append_plane(retval, bool(board.castling_rights & chess.BB_H8))
+    retval = append_plane(retval, bool(board.castling_rights & chess.BB_H1))
     retval = append_plane(retval, bool(board.castling_rights & chess.BB_A8))
+    retval = append_plane(retval, bool(board.castling_rights & chess.BB_H8))
     retval = append_plane(retval, not board_.turn)
 
     #a = np.full((1, 8, 8), board_.halfmove_clock, dtype=float)

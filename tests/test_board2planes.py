@@ -23,23 +23,21 @@ ALL_PIECES = (
 )
 
 # ---------------------------------------------------------------------------
-# Castling-plane regression tests
+# Castling-plane tests (planes 104-107)
 #
-# These tests pin the **current** badgyal castling-plane behavior.  The
-# kingside/queenside planes (104/105 and 106/107) are **swapped** relative
-# to Lc0 classical INPUT_CLASSICAL_112_PLANE.
+# Lc0 classical INPUT_CLASSICAL_112_PLANE order:
+#   104 = we_queenside  (BB_A1 / BB_A8)
+#   105 = we_kingside   (BB_H1 / BB_H8)
+#   106 = they_queenside (BB_A8 / BB_A1)
+#   107 = they_kingside  (BB_H8 / BB_H1)
 #
-# Known issue: see docs/research/112planes.md §4.1.
-# Any future fix that reorders the castling planes in board2planes.py MUST
-# update these tests in lockstep — these tests will fail by design when the
-# swap is corrected.  They are regression (behavior-pinning) tests, not
-# Lc0-correctness tests.
+# See: docs/adr/0001-match-lc0-classical-encoding.md
 # ---------------------------------------------------------------------------
 
-PLANE_OUR_KINGSIDE = 104
-PLANE_OUR_QUEENSIDE = 105
-PLANE_THEIR_KINGSIDE = 106
-PLANE_THEIR_QUEENSIDE = 107
+PLANE_OUR_QUEENSIDE = 104
+PLANE_OUR_KINGSIDE = 105
+PLANE_THEIR_QUEENSIDE = 106
+PLANE_THEIR_KINGSIDE = 107
 PLANE_SIDE_TO_MOVE = 108
 PLANE_HALFMOVE_CLOCK = 109
 PLANE_UNUSED = 110
@@ -170,40 +168,43 @@ def test_board2planes_all_pieces_black():
 
 # ---------------------------------------------------------------------------
 # Castling-plane tests (planes 104-107)
-# Pinning current badgyal behavior; swap fix is out of scope.
+#
+# Lc0 classical order:
+#   104 = we_queenside  (BB_A1 for white-to-move)
+#   105 = we_kingside   (BB_H1 for white-to-move)
+#   106 = they_queenside (BB_A8 for white-to-move)
+#   107 = they_kingside  (BB_H8 for white-to-move)
 # ---------------------------------------------------------------------------
 
 
 def test_castling_plane_104_white_kingside_only():
-    """Test plane 104 is all-1s when white kingside (K) is the only castling right.
+    """Test plane 105 is all-1s when white kingside (K) is the only castling right.
 
-    Pins current badgyal behavior: K maps to PLANE_OUR_KINGSIDE (104).
-    See docs/research/112planes.md §4.1 — the swap vs Lc0 classical is a
-    known issue; this test detects any future change to the plane order.
+    Lc0 classical: K (BB_H1) maps to PLANE_OUR_KINGSIDE (105).
+    Plane 104 (we_queenside) must be 0.
     """
     fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w K - 0 1"
     planes = _planes_for_fen(fen)
 
-    assert planes[PLANE_OUR_KINGSIDE].sum() == 64, (
-        f"Plane {PLANE_OUR_KINGSIDE} should be all 1s for white kingside-only"
-    )
     assert planes[PLANE_OUR_QUEENSIDE].sum() == 0, (
         f"Plane {PLANE_OUR_QUEENSIDE} should be all 0s"
     )
-    assert planes[PLANE_THEIR_KINGSIDE].sum() == 0, (
-        f"Plane {PLANE_THEIR_KINGSIDE} should be all 0s"
+    assert planes[PLANE_OUR_KINGSIDE].sum() == 64, (
+        f"Plane {PLANE_OUR_KINGSIDE} should be all 1s for white kingside-only"
     )
     assert planes[PLANE_THEIR_QUEENSIDE].sum() == 0, (
         f"Plane {PLANE_THEIR_QUEENSIDE} should be all 0s"
     )
+    assert planes[PLANE_THEIR_KINGSIDE].sum() == 0, (
+        f"Plane {PLANE_THEIR_KINGSIDE} should be all 0s"
+    )
 
 
 def test_castling_plane_105_white_queenside_only():
-    """Test plane 105 is all-1s when white queenside (Q) is the only castling right.
+    """Test plane 104 is all-1s when white queenside (Q) is the only castling right.
 
-    Pins current badgyal behavior: Q maps to PLANE_OUR_QUEENSIDE (105).
-    See docs/research/112planes.md §4.1 — the swap vs Lc0 classical is a
-    known issue; this test detects any future change to the plane order.
+    Lc0 classical: Q (BB_A1) maps to PLANE_OUR_QUEENSIDE (104).
+    Plane 105 (we_kingside) must be 0.
     """
     fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w Q - 0 1"
     planes = _planes_for_fen(fen)
@@ -214,58 +215,54 @@ def test_castling_plane_105_white_queenside_only():
     assert planes[PLANE_OUR_KINGSIDE].sum() == 0, (
         f"Plane {PLANE_OUR_KINGSIDE} should be all 0s"
     )
-    assert planes[PLANE_THEIR_KINGSIDE].sum() == 0, (
-        f"Plane {PLANE_THEIR_KINGSIDE} should be all 0s"
-    )
     assert planes[PLANE_THEIR_QUEENSIDE].sum() == 0, (
         f"Plane {PLANE_THEIR_QUEENSIDE} should be all 0s"
+    )
+    assert planes[PLANE_THEIR_KINGSIDE].sum() == 0, (
+        f"Plane {PLANE_THEIR_KINGSIDE} should be all 0s"
     )
 
 
 def test_castling_plane_106_black_kingside_only():
-    """Test plane 106 is all-1s when black kingside (k) is the only castling right.
+    """Test plane 107 is all-1s when black kingside (k) is the only castling right.
 
-    Pins current badgyal behavior: k maps to PLANE_THEIR_KINGSIDE (106)
-    when white is to move.
-    See docs/research/112planes.md §4.1 — the swap vs Lc0 classical is a
-    known issue; this test detects any future change to the plane order.
+    Lc0 classical: k (BB_H8) maps to PLANE_THEIR_KINGSIDE (107).
+    Plane 106 (they_queenside) must be 0.
     """
     fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w k - 0 1"
     planes = _planes_for_fen(fen)
 
-    assert planes[PLANE_THEIR_KINGSIDE].sum() == 64, (
-        f"Plane {PLANE_THEIR_KINGSIDE} should be all 1s for black kingside-only"
+    assert planes[PLANE_OUR_QUEENSIDE].sum() == 0, (
+        f"Plane {PLANE_OUR_QUEENSIDE} should be all 0s"
     )
     assert planes[PLANE_OUR_KINGSIDE].sum() == 0, (
         f"Plane {PLANE_OUR_KINGSIDE} should be all 0s"
-    )
-    assert planes[PLANE_OUR_QUEENSIDE].sum() == 0, (
-        f"Plane {PLANE_OUR_QUEENSIDE} should be all 0s"
     )
     assert planes[PLANE_THEIR_QUEENSIDE].sum() == 0, (
         f"Plane {PLANE_THEIR_QUEENSIDE} should be all 0s"
     )
+    assert planes[PLANE_THEIR_KINGSIDE].sum() == 64, (
+        f"Plane {PLANE_THEIR_KINGSIDE} should be all 1s for black kingside-only"
+    )
 
 
 def test_castling_plane_107_black_queenside_only():
-    """Test plane 107 is all-1s when black queenside (q) is the only castling right.
+    """Test plane 106 is all-1s when black queenside (q) is the only castling right.
 
-    Pins current badgyal behavior: q maps to PLANE_THEIR_QUEENSIDE (107)
-    when white is to move.
-    See docs/research/112planes.md §4.1 — the swap vs Lc0 classical is a
-    known issue; this test detects any future change to the plane order.
+    Lc0 classical: q (BB_A8) maps to PLANE_THEIR_QUEENSIDE (106).
+    Plane 107 (they_kingside) must be 0.
     """
     fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w q - 0 1"
     planes = _planes_for_fen(fen)
 
-    assert planes[PLANE_THEIR_QUEENSIDE].sum() == 64, (
-        f"Plane {PLANE_THEIR_QUEENSIDE} should be all 1s for black queenside-only"
+    assert planes[PLANE_OUR_QUEENSIDE].sum() == 0, (
+        f"Plane {PLANE_OUR_QUEENSIDE} should be all 0s"
     )
     assert planes[PLANE_OUR_KINGSIDE].sum() == 0, (
         f"Plane {PLANE_OUR_KINGSIDE} should be all 0s"
     )
-    assert planes[PLANE_OUR_QUEENSIDE].sum() == 0, (
-        f"Plane {PLANE_OUR_QUEENSIDE} should be all 0s"
+    assert planes[PLANE_THEIR_QUEENSIDE].sum() == 64, (
+        f"Plane {PLANE_THEIR_QUEENSIDE} should be all 1s for black queenside-only"
     )
     assert planes[PLANE_THEIR_KINGSIDE].sum() == 0, (
         f"Plane {PLANE_THEIR_KINGSIDE} should be all 0s"
@@ -277,17 +274,17 @@ def test_castling_planes_no_rights():
     fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1"
     planes = _planes_for_fen(fen)
 
-    assert planes[PLANE_OUR_KINGSIDE].sum() == 0, (
-        f"Plane {PLANE_OUR_KINGSIDE} should be all 0s"
-    )
     assert planes[PLANE_OUR_QUEENSIDE].sum() == 0, (
         f"Plane {PLANE_OUR_QUEENSIDE} should be all 0s"
     )
-    assert planes[PLANE_THEIR_KINGSIDE].sum() == 0, (
-        f"Plane {PLANE_THEIR_KINGSIDE} should be all 0s"
+    assert planes[PLANE_OUR_KINGSIDE].sum() == 0, (
+        f"Plane {PLANE_OUR_KINGSIDE} should be all 0s"
     )
     assert planes[PLANE_THEIR_QUEENSIDE].sum() == 0, (
         f"Plane {PLANE_THEIR_QUEENSIDE} should be all 0s"
+    )
+    assert planes[PLANE_THEIR_KINGSIDE].sum() == 0, (
+        f"Plane {PLANE_THEIR_KINGSIDE} should be all 0s"
     )
 
 
@@ -296,53 +293,51 @@ def test_castling_planes_all_rights():
     fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     planes = _planes_for_fen(fen)
 
-    assert planes[PLANE_OUR_KINGSIDE].sum() == 64, (
-        f"Plane {PLANE_OUR_KINGSIDE} should be all 1s"
-    )
     assert planes[PLANE_OUR_QUEENSIDE].sum() == 64, (
         f"Plane {PLANE_OUR_QUEENSIDE} should be all 1s"
     )
-    assert planes[PLANE_THEIR_KINGSIDE].sum() == 64, (
-        f"Plane {PLANE_THEIR_KINGSIDE} should be all 1s"
+    assert planes[PLANE_OUR_KINGSIDE].sum() == 64, (
+        f"Plane {PLANE_OUR_KINGSIDE} should be all 1s"
     )
     assert planes[PLANE_THEIR_QUEENSIDE].sum() == 64, (
         f"Plane {PLANE_THEIR_QUEENSIDE} should be all 1s"
     )
+    assert planes[PLANE_THEIR_KINGSIDE].sum() == 64, (
+        f"Plane {PLANE_THEIR_KINGSIDE} should be all 1s"
+    )
 
 
 def test_castling_plane_104_black_to_move_kingside():
-    """Test plane 104 is all-1s when black to move with only black kingside (k).
+    """Test plane 105 is all-1s when black to move with only black kingside (k).
 
     board2planes calls board.mirror() when black is to move.  mirror() swaps
     piece colors and flips the board vertically; castling rights are also
     mirrored.  After the mirror, black's BB_H8 kingside right maps to
-    PLANE_OUR_KINGSIDE (104) — empirically confirmed in
-    docs/research/112planes.md §4.1.
+    PLANE_OUR_KINGSIDE (105) — per Lc0 classical order.
     """
     fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b k - 0 1"
     planes = _planes_for_fen(fen)
 
-    assert planes[PLANE_OUR_KINGSIDE].sum() == 64, (
-        f"Plane {PLANE_OUR_KINGSIDE} should be all 1s for black-to-move kingside"
-    )
     assert planes[PLANE_OUR_QUEENSIDE].sum() == 0, (
         f"Plane {PLANE_OUR_QUEENSIDE} should be all 0s"
     )
-    assert planes[PLANE_THEIR_KINGSIDE].sum() == 0, (
-        f"Plane {PLANE_THEIR_KINGSIDE} should be all 0s"
+    assert planes[PLANE_OUR_KINGSIDE].sum() == 64, (
+        f"Plane {PLANE_OUR_KINGSIDE} should be all 1s for black-to-move kingside"
     )
     assert planes[PLANE_THEIR_QUEENSIDE].sum() == 0, (
         f"Plane {PLANE_THEIR_QUEENSIDE} should be all 0s"
     )
+    assert planes[PLANE_THEIR_KINGSIDE].sum() == 0, (
+        f"Plane {PLANE_THEIR_KINGSIDE} should be all 0s"
+    )
 
 
 def test_castling_plane_105_black_to_move_queenside():
-    """Test plane 105 is all-1s when black to move with only black queenside (q).
+    """Test plane 104 is all-1s when black to move with only black queenside (q).
 
     Symmetry partner of test_castling_plane_104_black_to_move_kingside.
     After board.mirror(), black's BB_A8 queenside right maps to
-    PLANE_OUR_QUEENSIDE (105) — empirically confirmed in
-    docs/research/112planes.md §4.1.
+    PLANE_OUR_QUEENSIDE (104) — per Lc0 classical order.
     """
     fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b q - 0 1"
     planes = _planes_for_fen(fen)
@@ -353,11 +348,11 @@ def test_castling_plane_105_black_to_move_queenside():
     assert planes[PLANE_OUR_KINGSIDE].sum() == 0, (
         f"Plane {PLANE_OUR_KINGSIDE} should be all 0s"
     )
-    assert planes[PLANE_THEIR_KINGSIDE].sum() == 0, (
-        f"Plane {PLANE_THEIR_KINGSIDE} should be all 0s"
-    )
     assert planes[PLANE_THEIR_QUEENSIDE].sum() == 0, (
         f"Plane {PLANE_THEIR_QUEENSIDE} should be all 0s"
+    )
+    assert planes[PLANE_THEIR_KINGSIDE].sum() == 0, (
+        f"Plane {PLANE_THEIR_KINGSIDE} should be all 0s"
     )
 
 
