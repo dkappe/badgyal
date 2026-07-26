@@ -41,6 +41,8 @@ PLANE_OUR_QUEENSIDE = 105
 PLANE_THEIR_KINGSIDE = 106
 PLANE_THEIR_QUEENSIDE = 107
 PLANE_SIDE_TO_MOVE = 108
+PLANE_HALFMOVE_CLOCK = 109
+PLANE_UNUSED = 110
 PLANE_BIAS = 111
 
 
@@ -485,6 +487,68 @@ def test_board2planes_constant_ones_plane():
 
 
 # ---------------------------------------------------------------------------
+# Zeroed-plane tests (planes 109 halfmove clock, 110 unused)
+#
+# These tests pin the **current** badgyal behavior: planes 109 and 110 are
+# deliberately forced to zero in ``board2planes.py`` (lines 90, 92).  Plane
+# 109 is the Lc0 classical halfmove clock (rule-50); the real
+# ``board_.halfmove_clock`` fill is commented out with the note
+# "# half-move clock goes to zero".  Plane 110 is unused.
+#
+# A future ticket will implement the real halfmove clock in plane 109
+# (Lc0 classical).  When that lands, this test MUST be updated to assert
+# the real value instead of zero — these are behavior-pinning (regression)
+# tests, not Lc0-correctness tests.
+# See: docs/research/112planes.md §4.2
+# ---------------------------------------------------------------------------
+
+
+_ZEROED_PLANE_FENS = (
+    # Standard startpos, white to move — halfmove clock is 0.
+    chess.STARTING_FEN,
+    # Halfmove clock = 2 — proves zeroing even when the real clock is non-zero.
+    "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+    # Halfmove clock = 20 — larger value, same expectation.
+    "8/8/8/8/8/8/8/k1K5 w - - 20 30",
+    # Black to move with non-zero clock — exercises the mirror() branch to
+    # confirm the zeroing is independent of side-to-move / mirroring.
+    "8/8/8/8/8/8/8/k1K5 b - - 20 30",
+)
+
+
+def test_board2planes_zeroed_planes():
+    """Test that planes 109 (halfmove clock) and 110 (unused) are always zeroed.
+
+    ``board2planes.py`` deliberately forces both planes to zero (lines 90, 92).
+    Plane 109 is the Lc0 classical halfmove clock (rule-50); the real
+    ``board_.halfmove_clock`` fill is commented out with the note
+    "# half-move clock goes to zero".  Plane 110 is unused.
+
+    This test pins the current always-zero behavior so that a future
+    implementation of the real halfmove clock is **intentional and detected**.
+    When the real clock is implemented, this test must be updated to assert
+    the real value instead of zero.
+
+    See: docs/research/112planes.md §4.2
+    """
+    for fen in _ZEROED_PLANE_FENS:
+        planes = _planes_for_fen(fen)
+        assert torch.all(planes[PLANE_HALFMOVE_CLOCK] == 0.0), (
+            f"Plane {PLANE_HALFMOVE_CLOCK} (halfmove clock) is currently always "
+            f"zeroed (FEN: {fen!r})"
+        )
+        assert planes[PLANE_HALFMOVE_CLOCK].sum() == 0, (
+            f"Plane {PLANE_HALFMOVE_CLOCK} sum should be 0 (FEN: {fen!r})"
+        )
+        assert torch.all(planes[PLANE_UNUSED] == 0.0), (
+            f"Plane {PLANE_UNUSED} (unused) is always zeroed (FEN: {fen!r})"
+        )
+        assert planes[PLANE_UNUSED].sum() == 0, (
+            f"Plane {PLANE_UNUSED} sum should be 0 (FEN: {fen!r})"
+        )
+
+
+# ---------------------------------------------------------------------------
 # bulk_board2planes tests
 #
 # These tests pin the shape, dtype, contiguity, and per-element equivalence
@@ -615,4 +679,5 @@ if __name__ == "__main__":
     test_bulk_board2planes_single_board()
     test_bulk_board2planes_empty_list_raises()
     test_board2planes_constant_ones_plane()
+    test_board2planes_zeroed_planes()
     print("All tests passed!")
