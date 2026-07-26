@@ -4,4 +4,4 @@ torch==1.13.1
 pylru==1.2.1
 chess
 pytest
-
+onnxruntime==1.19.2

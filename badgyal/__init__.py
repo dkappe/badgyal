@@ -8,5 +8,9 @@ from badgyal.mgnet import MGNet
 from badgyal.lenet import LENet
 from badgyal.letorchnet import LETorchNet
 from badgyal.menet import MENet
+try:
+    from badgyal.onnxnet import OnnxNet
+except ImportError:  # onnxruntime not installed
+    OnnxNet = None
 from badgyal.policy_index import policy_index
 from badgyal.board2planes import board2planes, bulk_board2planes

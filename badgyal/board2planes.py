@@ -174,6 +174,65 @@ def board2planes(board_: chess.Board) -> torch.Tensor:
     return torch.from_numpy(np.expand_dims(retval, axis=0)).float()
 
 
+def board2planes_np(board_: chess.Board) -> np.ndarray:
+    """Numpy variant of ``board2planes`` returning a (1, 112, 8, 8) ndarray.
+
+    Identical encoding logic, but returns a numpy float32 array so callers
+    that do not depend on PyTorch (e.g. an ONNX-runtime backend) can use it.
+
+    Args:
+        board_: The chess position to encode.
+
+    Returns:
+        A float32 ndarray of shape (1, 112, 8, 8).
+    """
+    if not board_.turn:
+        board = board_.mirror()
+    else:
+        board = board_
+
+    retval = np.zeros((13, 8, 8), dtype=np.float32)
+    for row in range(8):
+        for col in range(8):
+            piece = str(board.piece_at(chess.SQUARES[row * 8 + col]))
+            if piece != "None":
+                DISPATCH[piece](retval, row, col)
+
+    if board == _STARTPOS:
+        zero_block = np.zeros((13, 8, 8), dtype=np.float32)
+        for _i in range(7):
+            retval = np.append(retval, zero_block, axis=0)
+    else:
+        temp = np.copy(retval)
+        if board.ep_square is not None:
+            temp = _undo_en_passant(temp, board)
+        for _i in range(7):
+            retval = np.append(retval, temp, axis=0)
+
+    retval = append_plane(retval, bool(board.castling_rights & chess.BB_A1))
+    retval = append_plane(retval, bool(board.castling_rights & chess.BB_H1))
+    retval = append_plane(retval, bool(board.castling_rights & chess.BB_A8))
+    retval = append_plane(retval, bool(board.castling_rights & chess.BB_H8))
+    retval = append_plane(retval, not board_.turn)
+    retval = append_plane(retval, False)
+    retval = append_plane(retval, False)
+    retval = append_plane(retval, True)
+    return np.expand_dims(retval, axis=0).astype(np.float32)
+
+
+def bulk_board2planes_np(boards) -> np.ndarray:
+    """Numpy variant of ``bulk_board2planes``.
+
+    Args:
+        boards: Iterable of ``chess.Board``.
+
+    Returns:
+        A float32 ndarray of shape (N, 112, 8, 8).
+    """
+    planes = [board2planes_np(b) for b in boards]
+    return np.concatenate(planes, axis=0).astype(np.float32)
+
+
 def bulk_board2planes(boards):
     planes = []
     for b in boards:
@@ -214,6 +273,54 @@ def policy2moves(board_, policy_tensor, softmax_temp=1.61):
         if not board_.turn:
             uci = mirrorMoveUCI(uci)
         p = policy[0][MOVE_MAP[fixed_uci]]
+        retval[uci] = p
+        if p > max_p:
+            max_p = p
+    total = 0.0
+    for uci in retval:
+        retval[uci] = exp((retval[uci] - max_p) / softmax_temp)
+        total = total + retval[uci]
+
+    if total > 0.0:
+        for uci in retval:
+            retval[uci] = retval[uci] / total
+    return retval
+
+
+def policy2moves_np(board_, policy: np.ndarray, softmax_temp: float = 1.61):
+    """Numpy variant of ``policy2moves`` accepting a raw ndarray.
+
+    Args:
+        board_: The chess position (same perspective conventions as
+            ``policy2moves``).
+        policy: A 1-D ndarray of length 1858 (the policy logits for one
+            position) or a 2-D array of shape (1, 1858).
+        softmax_temp: Temperature for the softmax normalization.
+
+    Returns:
+        Dict mapping UCI move strings to normalized probabilities.
+    """
+    if not board_.turn:
+        board = board_.mirror()
+    else:
+        board = board_
+    policy = np.asarray(policy).reshape(-1)
+
+    moves = list(board.legal_moves)
+    retval = {}
+    max_p = float("-inf")
+    for m in moves:
+        uci = m.uci()
+        fixed_uci = uci
+        if (uci == "e1g1") and board.is_kingside_castling(m):
+            fixed_uci = "e1h1"
+        elif (uci == "e1c1") and board.is_queenside_castling(m):
+            fixed_uci = "e1a1"
+        if uci[-1] == "n":
+            fixed_uci = uci[0:-1]
+        if not board_.turn:
+            uci = mirrorMoveUCI(uci)
+        p = policy[MOVE_MAP[fixed_uci]]
         retval[uci] = p
         if p > max_p:
             max_p = p

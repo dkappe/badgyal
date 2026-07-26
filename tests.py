@@ -3557,6 +3557,55 @@ class NetTestCase(unittest.TestCase):
             self.assertAlmostEqual(value, value2, 1, "Values don't match {}".format(fen))
             self.assertDictAlmostEqual(policy, policy2, places=2)
 
+    def test_onnx_matches_torch(self):
+        """Verify the ONNX backend produces values matching the torch backend."""
+        if badgyal.OnnxNet is None:
+            self.skipTest("onnxruntime not installed")
+        onnx_net = badgyal.OnnxNet('badgyal-9.onnx')
+        for fen, result in TESTS.items():
+            _, torch_value = test_fen(fen, NET)
+            _, onnx_value = test_fen(fen, onnx_net)
+            self.assertAlmostEqual(torch_value, onnx_value, 1,
+                "ONNX vs torch mismatch for {}: {} != {}".format(fen, onnx_value, torch_value))
+
+
+class BenchTestCase(unittest.TestCase):
+    """Benchmark and compare the torch and ONNX backends over all test FENs."""
+
+    def test_benchmark_torch_vs_onnx(self):
+        if badgyal.OnnxNet is None:
+            self.skipTest("onnxruntime not installed")
+        onnx_net = badgyal.OnnxNet('badgyal-9.onnx')
+        fens = list(TESTS.keys())
+
+        # Warm up both backends (first eval includes model load / session setup).
+        test_fen(fens[0], NET)
+        test_fen(fens[0], onnx_net)
+
+        import time
+        start = time.perf_counter()
+        for fen in fens:
+            test_fen(fen, NET)
+        torch_seconds = time.perf_counter() - start
+
+        start = time.perf_counter()
+        for fen in fens:
+            test_fen(fen, onnx_net)
+        onnx_seconds = time.perf_counter() - start
+
+        print("")
+        print("=" * 50)
+        print("Benchmark: {} FENs".format(len(fens)))
+        print("  torch: {:.4f}s  ({:.2f} ms/pos)".format(
+            torch_seconds, torch_seconds / len(fens) * 1000))
+        print("  onnx:  {:.4f}s  ({:.2f} ms/pos)".format(
+            onnx_seconds, onnx_seconds / len(fens) * 1000))
+        print("  speedup: {:.2f}x".format(torch_seconds / onnx_seconds))
+        print("=" * 50)
+        # Sanity: onnx should finish in a reasonable time.
+        self.assertGreater(onnx_seconds, 0)
+        self.assertGreater(torch_seconds, 0)
+
 
 if __name__ == "__main__":
     unittest.main()
