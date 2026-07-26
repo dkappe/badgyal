@@ -393,6 +393,7 @@ def test_side_to_move_plane_black():
         f"Plane {PLANE_SIDE_TO_MOVE} should be all 1.0 for black-to-move"
     )
 
+
 def test_startpos_black_to_move_mirrors():
     """Test startpos with black to move: pieces are encoded from side-to-move's perspective.
 
@@ -652,6 +653,123 @@ def test_bulk_board2planes_empty_list_raises():
         bulk_board2planes([])
 
 
+# ---------------------------------------------------------------------------
+# Startpos history-fill test (planes 13-103)
+#
+# Lc0 --history-fill=fen_only: startpos has no meaningful prior history
+# at ply 0; planes 13..103 must be all zeros.  Block 0 (planes 0-12)
+# still contains the startpos pieces.
+# ---------------------------------------------------------------------------
+
+
+def test_board2planes_startpos_history_is_zero():
+    """Test that planes 13-103 are all-zero for the standard startpos.
+
+    Lc0's default --history-fill=fen_only leaves planes 13-103 as zeros
+    when the FEN is the standard startpos (a game starting from startpos
+    has no meaningful prior history at ply 0).  Block 0 (planes 0-12)
+    still contains the startpos pieces.
+    """
+    fen = chess.STARTING_FEN
+    planes = _planes_for_fen(fen)
+
+    # Block 0 (planes 0-12) must contain the startpos pieces.
+    # Assert at least the white-pawns plane (plane 0) has 8 set bits.
+    assert planes[0, :, :].sum() == 8, (
+        "Block 0 plane 0 (white pawns) should have 8 set bits"
+    )
+
+    # Historical blocks 1-7 (planes 13-103) must all be zero.
+    for block in range(1, 8):
+        block_planes = planes[13 * block : 13 * (block + 1)]
+        assert torch.all(block_planes == 0.0), (
+            f"Block {block} (planes {13 * block}-{13 * (block + 1) - 1}) "
+            f"should be all zeros for startpos, got sum={block_planes.sum().item()}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# En-passant undo test (planes 13-103)
+#
+# When Lc0 synthesizes a historical block and the current position has an
+# en-passant target square, it removes the just-pushed pawn from the e.p.
+# destination and places it back on its pre-push square in the correct
+# side's pawn plane.
+# ---------------------------------------------------------------------------
+
+
+def test_board2planes_en_passant_history_undo():
+    """Test en-passant pawn undo in synthesized historical blocks.
+
+    FEN: black just pushed d7-d5 (e.p. square d6), white to move.
+    In the current position (block 0), the black pawn is on d5.
+    In synthesized historical blocks (planes 13-103), the black pawn
+    should be on d7 (pre-push square), not on d5.
+
+    This is a non-mirrored position (white-to-move original).
+    """
+    fen = "rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPPPPPPP/RNBQKBNR w KQkq d6 0 3"
+    planes = _planes_for_fen(fen)
+
+    # Block 0 (planes 0-12) matches the current position:
+    #   - White pawn on e5 (plane 0, row 4, col 4)
+    #   - Black pawn on d5 (plane 6, row 4, col 3)
+    assert planes[0, 4, 4] == 1.0, "Block 0: white pawn should be on e5"
+    assert planes[6, 4, 3] == 1.0, "Block 0: black pawn should be on d5"
+
+    # Historical blocks (planes 13-103):
+    #   - Black pawn should be on d7 (pre-push), not d5
+    #   - Non-mirrored: black pawn plane is plane 6.
+    #   - Pre-push square d7 = row 6, col 3.
+    #   - Post-push square d5 = row 4, col 3.
+    for block in range(1, 8):
+        block_start = 13 * block
+        assert planes[block_start + 6, 6, 3] == 1.0, (
+            f"Block {block}: black pawn should be on d7 (pre-push) in plane 6"
+        )
+        assert planes[block_start + 6, 4, 3] == 0.0, (
+            f"Block {block}: no black pawn should be on d5 (post-push) in plane 6"
+        )
+
+
+def test_board2planes_en_passant_history_undo_black_to_move():
+    """Test en-passant pawn undo for black-to-move (mirrored) positions.
+
+    FEN: white just pushed e2-e4 (e.p. square e3), black to move.
+    ``board2planes`` mirrors the board via ``chess.Board.mirror()`` which
+    swaps piece colors and flips the board vertically.  The original white
+    pawn on e4 becomes a black pawn on e5 in the mirrored board, landing in
+    plane 6.  In synthesized historical blocks, that pawn should be on e7
+    (the mirrored e2, i.e. pre-push square).
+
+    After mirroring (black-to-move):
+      - The e.p. square e3 maps to e6 (row 5, col 4) in the mirrored board.
+      - The post-push pawn (black on e5) is at row 4, col 4 in plane 6.
+      - The pre-push pawn (black on e7) is at row 6, col 4 in plane 6.
+    """
+    fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 2"
+    planes = _planes_for_fen(fen)
+
+    # Block 0 (planes 0-12) matches the current mirrored position:
+    #   - Black pawn on e5 (plane 6, row 4, col 4) — the mirrored e4 pawn
+    assert planes[6, 4, 4] == 1.0, (
+        "Block 0: mirrored black pawn should be on e5 (row 4, col 4) in plane 6"
+    )
+
+    # Historical blocks (planes 13-103):
+    #   - The pawn should be on e7 (pre-push, row 6, col 4) in plane 6
+    #   - Not on e5 (post-push)
+    for block in range(1, 8):
+        block_start = 13 * block
+        assert planes[block_start + 6, 6, 4] == 1.0, (
+            f"Block {block}: pre-push pawn should be on e7 (row 6, col 4) in plane 6"
+        )
+        assert planes[block_start + 6, 4, 4] == 0.0, (
+            f"Block {block}: no pawn should be on e5 (row 4, col 4) "
+            "in plane 6 (post-push square)"
+        )
+
+
 if __name__ == "__main__":
     test_board2planes_shape()
     test_board2planes_white_pawns()
@@ -675,4 +793,7 @@ if __name__ == "__main__":
     test_bulk_board2planes_empty_list_raises()
     test_board2planes_constant_ones_plane()
     test_board2planes_zeroed_planes()
+    test_board2planes_startpos_history_is_zero()
+    test_board2planes_en_passant_history_undo()
+    test_board2planes_en_passant_history_undo_black_to_move()
     print("All tests passed!")
